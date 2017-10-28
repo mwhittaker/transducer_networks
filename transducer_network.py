@@ -1,5 +1,6 @@
 from collections import Counter
 import random
+import json
 
 from schema import TransducerState, database_satisfies_schema
 
@@ -18,23 +19,18 @@ class TransuducerNetwork(object):
                       for node in nodes}
 
     def __str__(self):
-        ss = []
+        def sets_to_lists(d):
+            return {k: list(v) for (k, v) in d.items()}
+
+        nodes = {}
         for (node, state) in self._states.items():
-            buf = self._bufs[node]
-
-            ss.append("Node '{}'".format(node))
-            named_databases = [
-                ("in", state.in_),
-                ("out", state.out),
-                ("mem", state.mem),
-                ("buf", buf),
-            ]
-            for (name, database) in named_databases:
-                ss.append("  {}".format(name))
-                for (r, d) in database.items():
-                    ss.append("    '{}': {}".format(r, d))
-
-        return "\n".join(ss)
+            nodes[node] = {
+                "in": sets_to_lists(state.in_),
+                "out": sets_to_lists(state.out),
+                "mem": sets_to_lists(state.mem),
+                "buf": {r: c.elements() for (r, c) in self._bufs[node].items()},
+            }
+        return json.dumps(nodes)
 
     def configuration(self):
         return (self._states, self._bufs)
