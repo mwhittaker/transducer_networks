@@ -20,13 +20,13 @@ def main():
     }
     tn = TransuducerNetwork(net, Ameloot1(), in_0)
 
-    print tn
-    tn._step(A, dict())
-    print tn
-    tn._step(B, dict())
-    print tn
-    tn._step(C, dict())
-    print tn
+    print tn.out()
+    tn.step(1)
+    print tn.out()
+    tn.step(1)
+    print tn.out()
+    tn.step(1)
+    print tn.out()
 
 if __name__ == "__main__":
     main()

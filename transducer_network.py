@@ -1,4 +1,5 @@
 from collections import Counter
+import random
 
 from schema import TransducerState, database_satisfies_schema
 
@@ -16,8 +17,47 @@ class TransuducerNetwork(object):
         self._bufs = {node: {r: Counter() for r in self._schema.msg}
                       for node in nodes}
 
+    def __str__(self):
+        ss = []
+        for (node, state) in self._states.items():
+            buf = self._bufs[node]
+
+            ss.append("Node '{}'".format(node))
+            named_databases = [
+                ("in", state.in_),
+                ("out", state.out),
+                ("mem", state.mem),
+                ("buf", buf),
+            ]
+            for (name, database) in named_databases:
+                ss.append("  {}".format(name))
+                for (r, d) in database.items():
+                    ss.append("    '{}': {}".format(r, d))
+
+        return "\n".join(ss)
+
     def configuration(self):
         return (self._states, self._bufs)
+
+    def out(self):
+        out_0 = {r: set() for r in self._schema.out}
+        outs = [s.out for s in self._states.values()]
+        return reduce(TransuducerNetwork.union_dicts, outs, out_0)
+
+    def step(self):
+        node = random.choice(self._network.keys())
+        buf = self._bufs[node]
+        msgs = {r: TransuducerNetwork.random_subset(buf[r]) for r in buf}
+        self._step(node, msgs)
+        return (node, msgs)
+
+    def run(self):
+        last_out = None
+        out = self.out()
+        while last_out != out:
+            last_out = out
+            self.step()
+            out = self.out()
 
     def _step(self, node, msgs):
         # Sanity check msgs.
@@ -47,21 +87,13 @@ class TransuducerNetwork(object):
         sys = {"Id": {node}, "All": nodes}
         return TransducerState(in_0, out, msg, mem, sys)
 
-    def __str__(self):
-        ss = []
-        for (node, state) in self._states.items():
-            buf = self._bufs[node]
+    @staticmethod
+    def union_dicts(d1, d2):
+        assert d1.keys() == d2.keys()
+        return {k: d1[k] | d2[k] for k in d1}
 
-            ss.append("Node '{}'".format(node))
-            named_databases = [
-                ("in", state.in_),
-                ("out", state.out),
-                ("mem", state.mem),
-                ("buf", buf),
-            ]
-            for (name, database) in named_databases:
-                ss.append("  {}".format(name))
-                for (r, d) in database.items():
-                    ss.append("    '{}': {}".format(r, d))
-
-        return "\n".join(ss)
+    @staticmethod
+    def random_subset(ms):
+        xs = ms.elements()
+        xs = random.sample(xs, random.randint(0, len(xs) - 1))
+        return Counter(xs)
