@@ -99,4 +99,3 @@ class TransuducerNetwork(object):
         unioned = _union_database(mems, schema)
         for state in self._states.values():
             state.mem[r] = unioned[r]
-

@@ -1,6 +1,19 @@
 from schema import database_satisfies_schema, state_satisfies_schema
 
 class Transducer(object):
+    """
+    A relational transducer. See "Relational Transducers for Declarative
+    Networking" for a description of what a relation transducer is. Here's an
+    example of how to define the Example 4.3 transducer from the Ameloot paper:
+
+        class Ameloot1(Transducer):
+            def schema(self):
+                return TransducerSchema({"R": 2}, {"T": 2}, dict(), dict())
+
+            def out(self, r, state):
+                assert r == "T"
+                return {(x, y) for (x, y) in state.in_["R"] if x == y}
+    """
     def schema(self):
         raise NotImplementedError()
 
@@ -17,6 +30,10 @@ class Transducer(object):
         raise NotImplementedError()
 
     def step(self, state, msgs):
+        """
+        Computes I, I_rcv -> J, J_snd from the Ameloot paper where I = state,
+        I_rcv = msgs, and (J, J_snd) is returned.
+        """
         schema = self.schema()
         state_p = state._replace(msg=msgs)
 

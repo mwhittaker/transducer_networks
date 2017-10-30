@@ -241,8 +241,6 @@ class SynchronizedNegationsButNotConsistent(Transducer):
             tn.random_step()
         print tn.out()
 
-
-
 def main():
     MonotoneButNotConsistent.proof()
     SuperMonotoneButNotConsistent.proof()
