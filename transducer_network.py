@@ -14,6 +14,11 @@ class Dict:
         assert d1.keys() == d2.keys()
         return {k: f(d1[k], d2[k]) for k in d1}
 
+def _union_database(ds, schema):
+    f = lambda d1, d2: Dict.map2(d1, d2, lambda s1, s2: s1 | s2)
+    d0 = {r: set() for r in schema}
+    return reduce(f, ds, d0)
+
 def _random_subset(ms):
     xs = list(ms.elements())
     xs = random.sample(xs, random.randint(0, len(xs)))
@@ -58,10 +63,9 @@ class TransuducerNetwork(object):
         return (self._states, self._bufs)
 
     def out(self):
-        out_0 = {r: set() for r in self._schema.out}
+        schema = self._schema.out
         outs = [s.out for s in self._states.values()]
-        f = lambda d1, d2: Dict.map2(d1, d2, lambda s1, s2: s1 | s2)
-        return reduce(f, outs, out_0)
+        return _union_database(outs, schema)
 
     def step(self, node, msgs):
         # Sanity check msgs.
@@ -88,3 +92,11 @@ class TransuducerNetwork(object):
         msgs = {r: _random_subset(buf[r]) for r in buf}
         self.step(node, msgs)
         return (node, msgs)
+
+    def sync_mem_relation(self, r):
+        schema = self._schema.mem
+        mems = [s.mem for s in self._states.values()]
+        unioned = _union_database(mems, schema)
+        for state in self._states.values():
+            state.mem[r] = unioned[r]
+

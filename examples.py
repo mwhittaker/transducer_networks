@@ -27,7 +27,7 @@ class MonotoneButNotConsistent(Transducer):
     """
     This transducer shows that not all monotone transducers are consistent.
     This transducer is defined over a schema with an I input relation, an O
-    output relation, an A and R message relations, and an M memory relation.
+    output relation, A and R message relations, and an M memory relation.
     All relations have arity 1. We can express each query as a non-recursive
     Datalog query:
 
@@ -72,8 +72,8 @@ class MonotoneButNotConsistent(Transducer):
     @staticmethod
     def example():
         X, Y = "X", "Y"
-        net = {A: {Y}, Y: {A}}
-        in_0 = {A: {"I": {(1,)}}, Y: {"I": {(2,)}}}
+        net = {X: {Y}, Y: {X}}
+        in_0 = {X: {"I": {(1,)}}, Y: {"I": {(2,)}}}
         return TransuducerNetwork(net, MonotoneButNotConsistent(), in_0)
 
     @staticmethod
@@ -97,3 +97,97 @@ class MonotoneButNotConsistent(Transducer):
             tn.step("Y", {"A": Counter([(1,)]), "R": Counter([(1,)])})
             tn.step("X", {"A": Counter([(2,)]), "R": Counter([(2,)])})
         print tn.out()
+
+class SynchronizedNegationsButNotConsistent(Transducer):
+    """
+    This transducer shows that synchronizing negated relations is not
+    sufficient to make a transducer consistent. This transducer is defined over
+    a schema with an I input relation, an O output relation, A and R message
+    relations, and A and R memory relation.  All relations have arity 1. We can
+    express each query as a non-recursive Datalog query:
+
+        # Replicate input.
+        A(a) :- I(a)
+        R(a) :- I(a)
+
+        # Cache input.
+        A_ins(a) :- A(a)
+        R_ins(a) :- R(a)
+
+        # Write to out.
+        O(a) :- A(a), !R(a)
+
+    The only negated relation is R, but synchronizing R before every timestep
+    is not enough to guarantee that the transducer network is consistent. See
+    the proof method below for details.
+    """
+    def schema(self):
+        return TransducerSchema(
+            in_={"I": 1},
+            out={"O": 1},
+            msg={"A": 1, "R": 1},
+            mem={"A": 1, "R": 1},
+        )
+
+    def snd(self, r, state):
+        assert r in ["A", "R"]
+        return state.in_["I"]
+
+    def add(self, r, state):
+        return state.msg[r]
+
+    def rem(self, r, state):
+        return set()
+
+    def out(self, r, state):
+        assert r == "O"
+        return state.mem["A"] - state.mem["R"]
+
+    @staticmethod
+    def example():
+        X, Y = "X", "Y"
+        net = {X: {Y}, Y: {X}}
+        in_0 = {X: {"I": {(1,)}}, Y: {"I": {(2,)}}}
+        t = SynchronizedNegationsButNotConsistent()
+        return TransuducerNetwork(net, t, in_0)
+
+    @staticmethod
+    def proof():
+        # It's easy to construct a run in which the output quiesces at {1, 2}.
+        tn = SynchronizedNegationsButNotConsistent.example()
+        tn.step("X", {"A": dict(), "R": dict()})
+        tn.sync_mem_relation("R")
+        tn.step("Y", {"A": Counter([(1,)]), "R": dict()})
+        tn.sync_mem_relation("R")
+        tn.step("Y", {"A": dict(), "R": dict()})
+        tn.sync_mem_relation("R")
+        tn.step("X", {"A": Counter([(2,)]), "R": dict()})
+        tn.sync_mem_relation("R")
+        tn.step("X", {"A": dict(), "R": dict()})
+        tn.sync_mem_relation("R")
+        for _ in range(100):
+            tn.random_step()
+        print tn.out()
+
+        # We can also construct a run which quiesces at the empty set.
+        tn = SynchronizedNegationsButNotConsistent.example()
+        tn.step("X", {"A": dict(), "R": dict()})
+        tn.sync_mem_relation("R")
+        tn.step("Y", {"A": dict(), "R": Counter([(1,)])})
+        tn.sync_mem_relation("R")
+        tn.step("Y", {"A": dict(), "R": dict()})
+        tn.sync_mem_relation("R")
+        tn.step("X", {"A": dict(), "R": Counter([(2,)])})
+        tn.sync_mem_relation("R")
+        tn.step("X", {"A": dict(), "R": dict()})
+        tn.sync_mem_relation("R")
+        for _ in range(100):
+            tn.random_step()
+        print tn.out()
+
+def main():
+    MonotoneButNotConsistent.proof()
+    SynchronizedNegationsButNotConsistent.proof()
+
+if __name__ == "__main__":
+    main()
