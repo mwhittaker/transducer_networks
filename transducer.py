@@ -27,6 +27,6 @@ class Transducer(object):
         snd = {r: self.snd(r, state_p) for r in schema.msg}
         new_state = state._replace(out=out, mem=mem)
 
-        assert state_satisfies_schema(new_state, schema)
+        assert state_satisfies_schema(new_state, schema), (new_state, schema)
         assert database_satisfies_schema(snd, schema.msg)
         return (new_state, snd)

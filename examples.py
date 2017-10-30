@@ -98,6 +98,62 @@ class MonotoneButNotConsistent(Transducer):
             tn.step("X", {"A": Counter([(2,)]), "R": Counter([(2,)])})
         print tn.out()
 
+class SuperMonotoneButNotConsistent(Transducer):
+    """
+    This transducer shows that not all monotone transducers are consistent.
+    This transducer is defined over a schema with an I input relation of arity
+    1 and an O output relation of arity 2. The transducer performs no network
+    communication and consists of a single rule:
+
+        O(a, b) :- I(a), I(b), a != b
+
+    This program is super montone in the sense that:
+
+        (1) it never deletes from its channels,
+        (2) it never deletes from its memory, and
+        (3) all of its rules are monotone.
+
+    Howoever, the transducer is still not consistent. See proof method below
+    for details.
+    """
+    def schema(self):
+        return TransducerSchema(
+            in_={"I": 1},
+            out={"O": 2},
+            msg=dict(),
+            mem=dict(),
+        )
+
+    def out(self, r, state):
+        assert r == "O"
+        I = state.in_["I"]
+        return {(a, b) for (a,) in I for (b,) in I if a != b}
+
+    @staticmethod
+    def example(in_0):
+        X, Y = "X", "Y"
+        net = {X: {Y}, Y: {X}}
+        return TransuducerNetwork(net, SuperMonotoneButNotConsistent(), in_0)
+
+    @staticmethod
+    def proof():
+        # We can construct a run in which the output quiesces at {(1, 2), (2, 1)}.
+        in_0 = {"X": {"I": {(1,), (2,)}}, "Y": {"I": set()}}
+        tn = SuperMonotoneButNotConsistent.example(in_0)
+        tn.step("X", dict())
+        for _ in range(100):
+            tn.random_step()
+        print tn.out()
+
+        # We can also construct a run in which the output quiesces at {}.
+        in_0 = {"X": {"I": {(1,)}}, "Y": {"I": {(2,)}}}
+        tn = SuperMonotoneButNotConsistent.example(in_0)
+        tn.step("X", dict())
+        tn.step("Y", dict())
+        for _ in range(100):
+            tn.random_step()
+        print tn.out()
+
 class SynchronizedNegationsButNotConsistent(Transducer):
     """
     This transducer shows that synchronizing negated relations is not
@@ -185,8 +241,11 @@ class SynchronizedNegationsButNotConsistent(Transducer):
             tn.random_step()
         print tn.out()
 
+
+
 def main():
     MonotoneButNotConsistent.proof()
+    SuperMonotoneButNotConsistent.proof()
     SynchronizedNegationsButNotConsistent.proof()
 
 if __name__ == "__main__":
